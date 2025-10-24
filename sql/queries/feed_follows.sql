@@ -29,14 +29,3 @@ INNER JOIN feeds ON feeds.id = feed_follows.feed_id WHERE feed_follows.user_id =
 DELETE FROM feed_follows
 WHERE feed_follows.feed_id = $1 AND
 feed_follows.user_id = $2;
-
--- name: MarkFeedFetched :exec
-UPDATE feed_follows SET
-last_fetched_at = $1,
-updated_at = $2
-WHERE feed_id = $3;
-
--- name: GetNextFeedToFetch :one
-SELECT * FROM feed_follows
-ORDER BY last_fetched_at ASC NULLS FIRST
-LIMIT 1;

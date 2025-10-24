@@ -7,7 +7,6 @@ package database
 
 import (
 	"context"
-	"database/sql"
 	"time"
 
 	"github.com/google/uuid"
@@ -28,9 +27,9 @@ WITH inserted_feed_follow AS (
         $4,
         $5
     )
-    RETURNING id, created_at, updated_at, feed_id, user_id, last_fetched_at
+    RETURNING id, created_at, updated_at, feed_id, user_id
 )
-SELECT inserted_feed_follow.id, inserted_feed_follow.created_at, inserted_feed_follow.updated_at, inserted_feed_follow.feed_id, inserted_feed_follow.user_id, inserted_feed_follow.last_fetched_at,users.name AS user_name,feeds.name AS feed_name
+SELECT inserted_feed_follow.id, inserted_feed_follow.created_at, inserted_feed_follow.updated_at, inserted_feed_follow.feed_id, inserted_feed_follow.user_id,users.name AS user_name,feeds.name AS feed_name
 FROM inserted_feed_follow INNER JOIN users ON users.id = inserted_feed_follow.user_id
 INNER JOIN feeds ON feeds.id = inserted_feed_follow.feed_id
 `
@@ -44,14 +43,13 @@ type CreateFeedFollowParams struct {
 }
 
 type CreateFeedFollowRow struct {
-	ID            uuid.UUID
-	CreatedAt     time.Time
-	UpdatedAt     time.Time
-	FeedID        uuid.UUID
-	UserID        uuid.UUID
-	LastFetchedAt sql.NullTime
-	UserName      string
-	FeedName      string
+	ID        uuid.UUID
+	CreatedAt time.Time
+	UpdatedAt time.Time
+	FeedID    uuid.UUID
+	UserID    uuid.UUID
+	UserName  string
+	FeedName  string
 }
 
 func (q *Queries) CreateFeedFollow(ctx context.Context, arg CreateFeedFollowParams) (CreateFeedFollowRow, error) {
@@ -69,7 +67,6 @@ func (q *Queries) CreateFeedFollow(ctx context.Context, arg CreateFeedFollowPara
 		&i.UpdatedAt,
 		&i.FeedID,
 		&i.UserID,
-		&i.LastFetchedAt,
 		&i.UserName,
 		&i.FeedName,
 	)
@@ -93,20 +90,19 @@ func (q *Queries) DeleteFollowFromUser(ctx context.Context, arg DeleteFollowFrom
 }
 
 const getFeedFollowsForUser = `-- name: GetFeedFollowsForUser :many
-SELECT feed_follows.id, feed_follows.created_at, feed_follows.updated_at, feed_follows.feed_id, feed_follows.user_id, feed_follows.last_fetched_at,users.name AS user_name,feeds.name AS feed_name
+SELECT feed_follows.id, feed_follows.created_at, feed_follows.updated_at, feed_follows.feed_id, feed_follows.user_id,users.name AS user_name,feeds.name AS feed_name
 FROM feed_follows INNER JOIN users ON users.id = feed_follows.user_id
 INNER JOIN feeds ON feeds.id = feed_follows.feed_id WHERE feed_follows.user_id = $1
 `
 
 type GetFeedFollowsForUserRow struct {
-	ID            uuid.UUID
-	CreatedAt     time.Time
-	UpdatedAt     time.Time
-	FeedID        uuid.UUID
-	UserID        uuid.UUID
-	LastFetchedAt sql.NullTime
-	UserName      string
-	FeedName      string
+	ID        uuid.UUID
+	CreatedAt time.Time
+	UpdatedAt time.Time
+	FeedID    uuid.UUID
+	UserID    uuid.UUID
+	UserName  string
+	FeedName  string
 }
 
 func (q *Queries) GetFeedFollowsForUser(ctx context.Context, userID uuid.UUID) ([]GetFeedFollowsForUserRow, error) {
@@ -124,7 +120,6 @@ func (q *Queries) GetFeedFollowsForUser(ctx context.Context, userID uuid.UUID) (
 			&i.UpdatedAt,
 			&i.FeedID,
 			&i.UserID,
-			&i.LastFetchedAt,
 			&i.UserName,
 			&i.FeedName,
 		); err != nil {
@@ -139,42 +134,4 @@ func (q *Queries) GetFeedFollowsForUser(ctx context.Context, userID uuid.UUID) (
 		return nil, err
 	}
 	return items, nil
-}
-
-const getNextFeedToFetch = `-- name: GetNextFeedToFetch :one
-SELECT id, created_at, updated_at, feed_id, user_id, last_fetched_at FROM feed_follows
-ORDER BY last_fetched_at ASC NULLS FIRST
-LIMIT 1
-`
-
-func (q *Queries) GetNextFeedToFetch(ctx context.Context) (FeedFollow, error) {
-	row := q.db.QueryRowContext(ctx, getNextFeedToFetch)
-	var i FeedFollow
-	err := row.Scan(
-		&i.ID,
-		&i.CreatedAt,
-		&i.UpdatedAt,
-		&i.FeedID,
-		&i.UserID,
-		&i.LastFetchedAt,
-	)
-	return i, err
-}
-
-const markFeedFetched = `-- name: MarkFeedFetched :exec
-UPDATE feed_follows SET
-last_fetched_at = $1,
-updated_at = $2
-WHERE feed_id = $3
-`
-
-type MarkFeedFetchedParams struct {
-	LastFetchedAt sql.NullTime
-	UpdatedAt     time.Time
-	FeedID        uuid.UUID
-}
-
-func (q *Queries) MarkFeedFetched(ctx context.Context, arg MarkFeedFetchedParams) error {
-	_, err := q.db.ExecContext(ctx, markFeedFetched, arg.LastFetchedAt, arg.UpdatedAt, arg.FeedID)
-	return err
 }

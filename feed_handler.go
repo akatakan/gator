@@ -16,7 +16,7 @@ func addFeed(s *state, cmd command, user database.User) error {
 	}
 	feedName := cmd.arguments[0]
 	feedURL := cmd.arguments[1]
-
+	
 	feed, err := s.db.CreateFeed(ctx, database.CreateFeedParams{
 		ID:        uuid.New(),
 		CreatedAt: time.Now().UTC(),
