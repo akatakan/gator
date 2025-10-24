@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"errors"
 	"fmt"
 
@@ -15,10 +16,11 @@ func loginHandler(s *state, cmd command) error {
 		return errors.New("just give username")
 	}
 	username := cmd.arguments[0]
-	err := config.SetUser(*s.config, username)
+	user, err := s.db.GetUser(context.Background(), username)
 	if err != nil {
 		return err
 	}
-	fmt.Printf("%s user has been set\n", username)
+	config.SetUser(*s.config, user.Name)
+	fmt.Printf("%s user has logged in\n", user.Name)
 	return nil
 }
